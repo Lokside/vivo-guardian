@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Aucun contenu d'ecran lu : seul le changement de fenetre sert de "reveil" pour verifier les apps. -->
+<!-- No screen content is read: only window changes are used as a "reminder" to check the apps. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"

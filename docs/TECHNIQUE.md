@@ -1,5 +1,7 @@
 # Détails techniques et preuves
 
+🇬🇧 [English version](TECHNICAL.md)
+
 Tout ce qui suit a été observé sur un **vivo X Fold6** (ROM chinoise OriginOS 7, Android 17, sans root), avec `adb logcat -b events`, `dumpsys activity exit-info`, le journal GCM de Google Play Services et le code de `vivo-services.jar` / `com.vivo.sps` (désassemblé).
 
 ## 1. Le pré-démarrage du lanceur
@@ -32,13 +34,13 @@ Failed to broadcast to stopped app
 
 À l'inverse, une app **tuée** (mémoire, `low memory`, `pruner`) n'est pas « stopped » : la notification suivante la relance normalement.
 
-## 3. Comment le Gardien débloque une app
+## 3. Comment Guardian débloque une app
 
 - Il reçoit `ACTION_PACKAGE_RESTARTED` (diffusé par Android à chaque arrêt forcé).
 - 300 ms plus tard, il envoie un intent explicite (`com.phili.notifguard.WAKE`, `FLAG_INCLUDE_STOPPED_PACKAGES | FLAG_RECEIVER_FOREGROUND`) à un récepteur **exporté et sans permission** de l'app : de préférence `BOOT_COMPLETED`, `LOCKED_BOOT_COMPLETED` ou `MY_PACKAGE_REPLACED`, à défaut n'importe quel récepteur exporté. Livrer un broadcast à une app « stopped » lève cet état. Jusqu'à 3 essais sur des récepteurs différents.
 - Une app sans récepteur utilisable (ou qui ignore le signal) est notée une fois puis laissée tranquille jusqu'à ce que son état change.
 - Si l'app Paramètres est au premier plan au moment de l'arrêt, c'est un « Forcer l'arrêt » de l'utilisateur : il est respecté.
-- Le même test Amazon, Gardien actif :
+- Le même test Amazon, Guardian actif :
   ```
   19:11:24.764 am_kill ... due to stop
   19:11:25.285 NotifGuard: arrêt forcé détecté : Boutique Amazon
@@ -55,14 +57,14 @@ Contraintes découvertes :
 - **Nettoyeur** : `com.vivo.sps` (classes `NRMS-AccessibilityServices`) arrête de force les services d'accessibilité tiers à « Tout effacer », sauf ceux de sa liste. Pistes écartées :
   - `settings put secure third_srceen_read_packages …` : lue une seule fois au démarrage de `sps`, puis remise à la valeur d'usine à chaque redémarrage ;
   - listes « notclean » (`content://com.iqoo.secure.provider.secureprovider/speedupwhitelist`, etc.) : écriture refusée depuis adb.
-  - **Solution** : le cadenas des apps récentes (`UserLockedAppFilter` / `LockedAppManager`) est mémorisé **par app**. Testé : « Tout effacer » a fermé 96 processus mais pas le Gardien (même pid, accessibilité toujours active), aussi après redémarrage. C'est pourquoi l'app a un écran dédié, visible dans les récents le temps de poser le cadenas, alors que son écran principal en est exclu (`excludeFromRecents`, `finishAndRemoveTask()`).
+  - **Solution** : le cadenas des apps récentes (`UserLockedAppFilter` / `LockedAppManager`) est mémorisé **par app**. Testé : « Tout effacer » a fermé 96 processus mais pas Guardian (même pid, accessibilité toujours active), aussi après redémarrage. C'est pourquoi l'app a un écran dédié, visible dans les récents le temps de poser le cadenas, alors que son écran principal en est exclu (`excludeFromRecents`, `finishAndRemoveTask()`).
 - **Paramètres** : le centre de sécurité vivo (`com.vivo.safecenter`) retire le service de `enabled_accessibility_services` tant que l'app Paramètres est ouverte et le remet ~1 min après (vu : coupé à 18:22:05, remis à 18:23:02). Un redémarrage dans cette minute le laisse désactivé. Visible avec `adb shell dumpsys settings | grep name:enabled_accessibility_services`.
 - **`GET_INSTALLED_APPS`** : permission de la norme chinoise ; sans elle, `getInstalledApplications` ne renvoie que les apps système.
 
 ## 5. Coût
 
 Journée du 19/10/2026, 08:39 → 19:00, débranché, un redémarrage (`dumpsys batterystats --charged`) :
-- Gardien : **0,73 mAh** sur 1 794 mAh (0,04 %), dont 0,42 mAh d'écran pendant ses 13 s d'affichage ; 7,9 s de processeur au total ; aucun wakelock, aucune alarme, aucun réseau.
+- Guardian : **0,73 mAh** sur 1 794 mAh (0,04 %), dont 0,42 mAh d'écran pendant ses 13 s d'affichage ; 7,9 s de processeur au total ; aucun wakelock, aucune alarme, aucun réseau.
 - Processus jamais tué de la journée ; 14 coupures du service, toutes pendant un passage dans les Paramètres, reprises seules.
 - Liste des apps mémorisée : le parcours complet (~450 apps installées) n'a lieu qu'à l'allumage de l'écran, toutes les 5 min et à l'installation / mise à jour d'une app. Contrôles fréquents : < 10 ms de processeur sur 70 s avec 6 changements d'app.
 

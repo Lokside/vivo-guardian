@@ -15,7 +15,7 @@ import android.widget.TextView;
 
 import java.util.List;
 
-/** Etat du service, des apps surveillees et journal des deblocages. */
+/** Service state, watched apps and unblocking log. */
 public class MainActivity extends Activity {
     private TextView status;
 
@@ -29,18 +29,18 @@ public class MainActivity extends Activity {
         root.setPadding(pad, pad * 3, pad, pad);
 
         Button settings = new Button(this);
-        settings.setText("Réglages d'accessibilité");
+        settings.setText(R.string.btn_accessibility);
         settings.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
         root.addView(settings);
 
         Button lock = new Button(this);
-        lock.setText("Verrouiller dans les apps récentes (une fois)");
+        lock.setText(R.string.btn_lock);
         lock.setOnClickListener(v -> startActivity(new Intent(this, LockActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
         root.addView(lock);
 
         Button refresh = new Button(this);
-        refresh.setText("Rafraîchir");
+        refresh.setText(R.string.btn_refresh);
         refresh.setOnClickListener(v -> render());
         root.addView(refresh);
 
@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Ne laisser aucune carte dans les apps recentes.
+        // Never leave a card in recent apps.
         if (!isChangingConfigurations()) {
             finishAndRemoveTask();
         }
@@ -82,8 +82,7 @@ public class MainActivity extends Activity {
 
     private void render() {
         StringBuilder sb = new StringBuilder();
-        sb.append(serviceEnabled() ? "✅ Service actif\n\n"
-                : "❌ Service désactivé : Réglages d'accessibilité → Gardien notifs → activer\n\n");
+        sb.append(getString(serviceEnabled() ? R.string.status_on : R.string.status_off)).append("\n\n");
         List<String> watched = GuardService.watchedPackages(this);
         StringBuilder blocked = new StringBuilder();
         StringBuilder noEntry = new StringBuilder();
@@ -94,14 +93,15 @@ public class MainActivity extends Activity {
                 noEntry.append("  • ").append(name).append('\n');
             }
         }
-        sb.append(watched.size()).append(" apps surveillées (autorisées à notifier).\n\n");
-        sb.append("Bloquées en ce moment :\n").append(blocked.length() == 0 ? "  aucune ✓\n" : blocked);
-        sb.append("\nImpossibles à débloquer (aucun point d'entrée) :\n")
-                .append(noEntry.length() == 0 ? "  aucune\n" : noEntry);
-        sb.append("\nJournal (récent en haut) :\n");
+        sb.append(getString(R.string.watched_count, watched.size())).append("\n\n");
+        sb.append(getString(R.string.blocked_now)).append('\n')
+                .append(blocked.length() == 0 ? "  " + getString(R.string.none_ok) + "\n" : blocked);
+        sb.append('\n').append(getString(R.string.cannot_unblock)).append('\n')
+                .append(noEntry.length() == 0 ? "  " + getString(R.string.none) + "\n" : noEntry);
+        sb.append('\n').append(getString(R.string.journal_header)).append('\n');
         List<String> lines = Journal.newestFirst(this);
         if (lines.isEmpty()) {
-            sb.append("  (vide)\n");
+            sb.append("  ").append(getString(R.string.journal_empty)).append('\n');
         } else {
             for (String l : lines) sb.append(l).append('\n');
         }

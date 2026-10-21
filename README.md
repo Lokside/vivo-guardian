@@ -1,187 +1,188 @@
-# 🛡️ Gardien notifs — notifications fiables sur vivo (OriginOS)
+# 🛡️ Guardian — reliable notifications on vivo (OriginOS)
 
-Petite app Android **sans root** qui empêche les téléphones **vivo** de couper les notifications de vos apps.
+A small **no-root** Android app that stops **vivo** phones from cutting off your apps' notifications.
 
-> **EN** — vivo's OriginOS force-stops apps behind your back (launcher "pre-start", cleaner, resource manager). A force-stopped app gets **no push notifications** until you open it again. This accessibility service (it reads nothing on screen, has no Internet permission) detects every force-stop and wakes the app in the background within 1–2 s. No root needed. Docs are in French; the ADB commands below are language-independent.
-
-**Télécharger** : [dernière version (APK)](https://github.com/Lokside/vivo-gardien-notifs/releases/latest) · [détails techniques et preuves](docs/TECHNIQUE.md) · [historique](CHANGELOG.md)
+**Download**: [latest version (APK)](https://github.com/Lokside/vivo-guardian/releases/latest) · [technical details and evidence](docs/TECHNICAL.md) · [changelog](CHANGELOG.md) · 🇫🇷 [Version française](README.fr.md)
 
 ---
 
-## Le problème
+## The problem
 
-Sur vivo (ROM chinoise OriginOS), vos apps arrêtent de recevoir leurs notifications pendant des heures, jusqu'à ce que vous les rouvriez. La cause, prouvée par les journaux système :
+On vivo phones (Chinese OriginOS ROM), apps stop receiving notifications for hours, until you open them again. The cause, proven by the system logs:
 
-1. **Pré-démarrage du lanceur** : dès que le doigt se **pose sur une icône**, vivo lance l'app à l'avance. Si le geste devient un balayage (changer de page, faire défiler le tiroir d'apps), vivo l'**arrête de force** ~50 à 150 ms plus tard.
-2. **Gestionnaire de ressources** (`com.vivo.sps:rms`) : arrête de force des apps 1 à 2 s après l'extinction de l'écran.
-3. **Nettoyeur** (« Tout effacer » dans les apps récentes).
+1. **Launcher pre-start**: as soon as your finger **lands on an icon**, vivo starts the app in advance. If the gesture turns into a swipe (changing home screen page, scrolling the app drawer), vivo **force-stops** it ~50 to 150 ms later.
+2. **Resource manager** (`com.vivo.sps:rms`): force-stops apps 1 to 2 s after the screen turns off.
+3. **Cleaner** ("Clear all" in recent apps).
 
-Une app **arrêtée de force** passe à l'état « stopped » : Google Play Services **refuse de lui livrer ses notifications** (`Failed to broadcast to stopped app`) tant qu'on ne l'a pas rouverte. Une app simplement fermée (mémoire, carte balayée) n'est pas concernée : la notification la relance normalement.
+A **force-stopped** app is put in the "stopped" state: Google Play Services **refuses to deliver its notifications** (`Failed to broadcast to stopped app`) until it is opened again. An app that is merely killed (memory, card swiped away) is not affected: the next notification restarts it normally.
 
-Les apps que vous ouvrez **rarement** sont les plus touchées (journal, banque, domotique, messagerie pro…). Aucun réglage vivo ne l'empêche : le démarrage auto, le démarrage associé ou la « consommation élevée en arrière-plan » ne protègent pas de l'arrêt forcé, et l'interrupteur système (`persist.vivo.qos.prestartapp`) est refusé sans root.
+Apps you open **rarely** are hit the hardest (news, banking, smart home, work messaging…). No vivo setting prevents it: autostart, associated start or "high background power consumption" do not protect against force-stops, and the system switch (`persist.vivo.qos.prestartapp`) is refused without root.
 
-## Ce que fait le Gardien
+## What Guardian does
 
-C'est un **service d'accessibilité** : Android le garde en vie et le prévient dès qu'une app est arrêtée de force. Il envoie alors un signal à l'un des récepteurs de cette app, ce qui la relance en arrière-plan **sans rien afficher** et lève l'état « stopped ». Il ne tourne pas en boucle : il attend qu'Android le prévienne.
+It is an **accessibility service**: Android keeps it alive and tells it as soon as an app is force-stopped. Guardian then sends a signal to one of that app's receivers, which restarts it in the background **without showing anything** and clears the "stopped" state. It does not run in a loop: it waits for Android to tell it.
 
-| Quand | Action |
+| When | Action |
 |---|---|
-| une app est arrêtée de force | la débloque (1 à 2 s) |
-| changement d'app (au plus toutes les 20 s) | vérifie les apps surveillées |
-| allumage d'écran, puis toutes les 5 min écran allumé | refait la liste des apps + reconnecte GmsCore s'il est installé |
-| téléphone en veille | rien (aucune alarme, aucun maintien d'éveil) |
+| an app is force-stopped | unblocks it (1 to 2 s) |
+| app switch (at most every 20 s) | checks the watched apps |
+| screen on, then every 5 min while the screen is on | rebuilds the app list + reconnects GmsCore if installed |
+| phone asleep | nothing (no alarm, no wakelock) |
 
-- **Apps surveillées** : toutes les apps installées autorisées à envoyer des notifications, hors apps système vivo / Android. Une nouvelle app est prise en compte toute seule.
-- Un **« Forcer l'arrêt » fait depuis les Paramètres** est respecté (l'app reste arrêtée).
-- Une app impossible à débloquer est notée **une fois** dans le journal, puis laissée tranquille.
-- L'écran de l'app montre : état du service, apps bloquées en ce moment, apps impossibles à débloquer, journal.
+- **Watched apps**: every installed app allowed to send notifications, except vivo / Android system apps. New apps are picked up automatically.
+- A **"Force stop" done from Settings** is respected (the app stays stopped).
+- An app that cannot be unblocked is logged **once**, then left alone.
+- The app screen shows: service status, apps blocked right now, apps that cannot be unblocked, log.
+- Interface in **English**, and in **French** on phones set to French.
 
-**Mesuré sur une journée entière débranchée** (10 h 20, `dumpsys batterystats`) : **0,73 mAh sur 1 794 mAh consommés (0,04 %)**, 7,9 s de processeur, 0 maintien d'éveil, 0 alarme, 0 réseau.
+**Measured over a full day unplugged** (10 h 20, `dumpsys batterystats`): **0.73 mAh out of 1,794 mAh used (0.04 %)**, 7.9 s of CPU, 0 wakelocks, 0 alarms, 0 network.
 
-**Vie privée** : pas d'autorisation Internet, ne lit **aucun** contenu de l'écran (`canRetrieveWindowContent=false`), journal stocké uniquement sur le téléphone. Seules autorisations : voir la liste des apps installées (`QUERY_ALL_PACKAGES` et `GET_INSTALLED_APPS`, obligatoire sur les ROM chinoises). Le code complet fait ~550 lignes : [src/](src/com/phili/notifguard).
+**Privacy**: no Internet permission, reads **no** screen content (`canRetrieveWindowContent=false`), log stored on the phone only. Only permissions: see the list of installed apps (`QUERY_ALL_PACKAGES` and `GET_INSTALLED_APPS`, mandatory on Chinese ROMs). The whole code is ~550 lines: [src/](src/com/phili/notifguard).
 
-## Compatibilité
+## Compatibility
 
 | | |
 |---|---|
-| Testé | **vivo X Fold6**, OriginOS 7 **ROM chinoise**, Android 17, bootloader verrouillé, sans root |
-| Probablement | autres vivo / iQOO sous OriginOS (même code système) — retours bienvenus dans les *Issues* |
-| Non testé | ROM globales FuntouchOS / OriginOS international, autres marques |
+| Tested | **vivo X Fold6**, OriginOS 7 **Chinese ROM**, Android 17, locked bootloader, no root |
+| Probably | other vivo / iQOO phones on OriginOS (same system code) — feedback welcome in *Issues* |
+| Not tested | global ROMs (FuntouchOS / international OriginOS), other brands |
 | Minimum | Android 8.0 |
 
 ---
 
 ## Installation
 
-### Méthode recommandée : avec un PC (5 minutes)
+### Recommended method: with a computer (5 minutes)
 
-C'est la méthode qui reproduit exactement la configuration testée.
+This method reproduces the tested setup exactly.
 
-**1. Sur le PC** : installer les outils Android (adb).
-- Windows : `winget install Google.PlatformTools` (ou [télécharger Platform Tools](https://developer.android.com/tools/releases/platform-tools) et dézipper).
-- macOS : `brew install android-platform-tools` · Linux : paquet `adb`.
+**1. On the computer**: install the Android tools (adb).
+- Windows: `winget install Google.PlatformTools` (or [download Platform Tools](https://developer.android.com/tools/releases/platform-tools) and unzip).
+- macOS: `brew install android-platform-tools` · Linux: `adb` package.
 
-**2. Sur le téléphone** : activer le débogage USB.
-- Paramètres → **À propos du téléphone** → **Version du logiciel** : toucher 7 fois.
-- Paramètres → Système → **Options pour les développeurs** → activer **Débogage USB** (et **Installation via USB** s'il existe).
-- Brancher le câble, accepter l'empreinte du PC sur le téléphone.
+**2. On the phone**: enable USB debugging.
+- Settings → **About phone** → **Software version**: tap 7 times.
+- Settings → System → **Developer options** → turn on **USB debugging** (and **Install via USB** if present).
+- Plug in the cable, accept the computer's fingerprint on the phone.
 
-**3. Télécharger** depuis la [page Releases](https://github.com/Lokside/vivo-gardien-notifs/releases/latest) : `GardienNotifs-v11.apk` et `installer.cmd` (Windows) ou `installer.sh` (macOS/Linux), dans le **même dossier**.
+**3. Download** from the [Releases page](https://github.com/Lokside/vivo-guardian/releases/latest): `Guardian-v12.apk` and `install.cmd` (Windows) or `install.sh` (macOS/Linux), into the **same folder**.
 
-**4. Lancer le script** (double-clic sur `installer.cmd`, ou `bash installer.sh`). Il :
+**4. Run the script** (double-click `install.cmd`, or `bash install.sh`). It runs:
 
-| Étape | Commande | Pourquoi |
+| Step | Command | Why |
 |---|---|---|
-| 1 | `adb install -r GardienNotifs-v11.apk` | installe l'app — **acceptez sur le téléphone**, la fenêtre vivo expire vite |
-| 2 | `adb shell pm grant com.phili.notifguard com.android.permission.GET_INSTALLED_APPS` | sans elle, l'app ne voit que les apps système (0 app surveillée) |
-| 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS allow` | Android 13+ grise l'accessibilité des apps installées hors magasin ; vivo n'a pas le menu ⋮ pour la débloquer |
-| 4 | `adb shell cmd appops set com.phili.notifguard AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore` | = « Interrompre l'activité si non utilisée » désactivé : Android ne retirera jamais ses autorisations |
-| 5 | `adb shell cmd deviceidle whitelist +com.phili.notifguard` | exemption de l'optimisation batterie Android |
-| 6 | ajoute `com.phili.notifguard/com.phili.notifguard.GuardService` à `settings secure enabled_accessibility_services` | active le service, **sans désactiver** vos autres services d'accessibilité |
-| 7 | `adb shell cmd deviceidle whitelist +app.revanced.android.gms` | seulement si GmsCore (microG de ReVanced / Morphe) est installé |
+| 1 | `adb install -r Guardian-v12.apk` | installs the app — **accept on the phone**, the vivo prompt expires quickly |
+| 2 | `adb shell pm grant com.phili.notifguard com.android.permission.GET_INSTALLED_APPS` | without it, the app only sees system apps (0 apps watched) |
+| 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS allow` | Android 13+ greys out accessibility for apps installed outside a store; vivo has no ⋮ menu to unlock it |
+| 4 | `adb shell cmd appops set com.phili.notifguard AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore` | = "Pause app activity if unused" off: Android will never remove its permissions |
+| 5 | `adb shell cmd deviceidle whitelist +com.phili.notifguard` | exempts it from Android battery optimisation |
+| 6 | adds `com.phili.notifguard/com.phili.notifguard.GuardService` to `settings secure enabled_accessibility_services` | turns the service on, **without turning off** your other accessibility services |
+| 7 | `adb shell cmd deviceidle whitelist +app.revanced.android.gms` | only if GmsCore (ReVanced / Morphe microG) is installed |
 
-Puis il ouvre l'app sur le téléphone.
+Then it opens the app on the phone.
 
-**5. Sur le téléphone : poser le cadenas (obligatoire, une seule fois)** → voir [plus bas](#le-cadenas-vivo-obligatoire).
+**5. On the phone: put the lock on (mandatory, once)** → see [below](#the-vivo-lock-mandatory).
 
-### Sans PC
+### Without a computer
 
-1. Télécharger `GardienNotifs-v11.apk` depuis le téléphone et l'installer (autoriser l'installation depuis le navigateur / gestionnaire de fichiers).
-2. Ouvrir **Gardien notifs** → accepter « liste des apps installées ».
-3. Bouton **Réglages d'accessibilité** → Gardien notifs → activer → **bouton Accueil**.
-   - Si l'interrupteur est **grisé** (« paramètre restreint ») : il faut la commande de l'étape 3 ci-dessus, donc un PC.
-4. Paramètres → Applications → Gardien notifs → désactiver « Interrompre l'activité de l'appli si elle n'est pas utilisée » (si présent).
-5. Poser le cadenas (ci-dessous).
+1. Download `Guardian-v12.apk` on the phone and install it (allow installs from the browser / file manager).
+2. Open **Guardian** → allow "list of installed apps".
+3. **Accessibility settings** button → Guardian → turn on → **Home button**.
+   - If the switch is **greyed out** ("restricted setting"): you need the command from step 3 above, so a computer.
+4. Settings → Apps → Guardian → turn off "Pause app activity if unused" (if present).
+5. Put the lock on (below).
 
-### Le cadenas vivo (obligatoire)
+### The vivo lock (mandatory)
 
-Sans lui, **« Tout effacer » arrête le Gardien de force** (le nettoyeur vivo arrête tous les services d'accessibilité tiers qui ne sont pas dans sa liste interne) et Android désactive alors son service. Le cadenas des apps récentes est **mémorisé par app** et conservé après redémarrage et mise à jour.
+Without it, **"Clear all" force-stops Guardian** (vivo's cleaner force-stops every third-party accessibility service that is not on its internal list) and Android then turns its service off. The recent-apps lock is **remembered per app** and survives reboots and updates.
 
-1. Dans le Gardien : bouton **« Verrouiller dans les apps récentes (une fois) »**.
-2. Ouvrir les **apps récentes** → poser le **cadenas** sur la carte « Gardien notifs » (glisser la carte vers le bas, ou appui long → Verrouiller, selon la version).
-3. Toucher la carte pour revenir dans le Gardien → **« Terminé : retirer la carte »**.
+1. In Guardian: **"Lock in recent apps (once)"** button.
+2. Open **recent apps** → put the **lock** on the "Guardian" card (drag the card down, or long-press → Lock, depending on the version).
+3. Tap the card to come back to Guardian → **"Done: remove the card"**.
 
-⚠️ Ne **jamais** fermer la carte du Gardien en la balayant vers le haut : vivo l'arrête de force (`single-cleaner`). Le reste du temps, le Gardien n'a aucune carte dans les apps récentes.
+⚠️ **Never** close Guardian's card by swiping it up: vivo force-stops it (`single-cleaner`). The rest of the time, Guardian has no card in recent apps.
 
-### Réglages vivo conseillés (facultatif)
+### Recommended vivo settings (optional)
 
-Dans **i Manager → Gestion des applications** (ou Paramètres → Batterie) pour *Gardien notifs* : démarrage auto ✅, démarrage associé ✅, consommation élevée en arrière-plan ✅. La configuration testée les avait ; ils ne suffisent pas seuls (c'est le cadenas qui protège du nettoyeur).
+In **i Manager → App manager** (or Settings → Battery) for *Guardian*: autostart ✅, associated start ✅, high background power consumption ✅. The tested setup had them; they are not enough on their own (the lock is what protects against the cleaner). Names vary between versions.
 
 ---
 
-## Vérifier que tout marche
+## Check that everything works
 
-- **Dans l'app** : « ✅ Service actif » en haut, nombre d'apps surveillées, apps bloquées, journal.
-- **Depuis le PC** : `scripts\verifier.cmd` (version, service, processus, autorisations, journal récent).
-- **Test d'un déblocage** (remplacer par une de vos apps) :
+- **In the app**: "✅ Service active" at the top, number of watched apps, blocked apps, log.
+- **From the computer**: `check.cmd` (version, service, process, permissions, recent log).
+- **Unblocking test** (replace with one of your apps):
   ```bash
   adb shell am force-stop com.whatsapp
   ```
   ```bash
   adb shell "sleep 3; dumpsys package com.whatsapp | grep -o 'stopped=[a-z]*'"
   ```
-  → `stopped=false` : débloquée. Le journal du Gardien affiche « arrêt forcé détecté » puis « débloqué ✓ ».
-- **Test du cadenas** : noter `adb shell pidof com.phili.notifguard`, faire « Tout effacer » dans les apps récentes, relancer la commande → **même numéro** = le Gardien a survécu.
-- Journal en direct : `adb logcat -s NotifGuard`.
+  → `stopped=false`: unblocked. Guardian's log shows "force-stop detected" then "unblocked ✓".
+- **Lock test**: note `adb shell pidof com.phili.notifguard`, tap "Clear all" in recent apps, run the command again → **same number** = Guardian survived.
+- Live log: `adb logcat -s NotifGuard`.
 
-## Règles à connaître
+## Rules to know
 
-1. **Paramètres** : tant que l'app Paramètres est ouverte (n'importe quelle page), le centre de sécurité vivo **suspend** le Gardien ; il revient **tout seul ~1 min** après la sortie. C'est normal.
-2. **Ne pas redémarrer dans la minute** qui suit un passage dans les Paramètres (sinon le service reste désactivé).
-3. En cas de doute : ouvrir le Gardien → « ✅ Service actif » ou « ❌ Service désactivé ».
-4. Si « ❌ Service désactivé » : bouton « Réglages d'accessibilité » → Gardien notifs → activer → **bouton Accueil** → revérifier après ~1 min. Inutile de reposer le cadenas.
-5. « Rafraîchir » ne fait que mettre l'affichage à jour.
-6. Après une **mise à jour** : accepter l'installation sur le téléphone ; le service reste en général activé, sinon règle 4.
+1. **Settings**: while the Settings app is open (any page), vivo's security centre **suspends** Guardian; it comes back **on its own ~1 min** after you leave. This is normal.
+2. **Do not reboot within a minute** of visiting Settings (otherwise the service stays off).
+3. When in doubt: open Guardian → "✅ Service active" or "❌ Service disabled".
+4. If "❌ Service disabled": "Accessibility settings" button → Guardian → turn on → **Home button** → check again after ~1 min. No need to put the lock on again.
+5. "Refresh" only updates the display.
+6. After an **update**: accept the install on the phone; the service usually stays on, otherwise rule 4.
 
-## Ce qui n'est pas couvert
+## What is not covered
 
-- **Apps sans point d'entrée** : certaines apps n'ont aucun récepteur utilisable (ex. F-Droid, Proton Pass, Ente Auth, Le Monde, quelques apps de banque ou de mutuelle). Le Gardien les liste dans « Impossibles à débloquer » : si elles se taisent, les ouvrir une fois.
-- Une notification refusée pendant un blocage est **réessayée par Google** (vu : refus à 15:33, livraison à 15:39 après déblocage) ; délai maximal inconnu.
-- Réglages propres à chaque app (ex. Outlook/Gmail ne notifient pas un mail envoyé depuis votre propre adresse).
+- **Apps without an entry point**: some apps have no usable receiver (e.g. F-Droid, Proton Pass, Ente Auth, Le Monde, some banking or insurance apps). Guardian lists them under "Cannot be unblocked": if they go quiet, open them once.
+- A notification refused while an app is blocked is **retried by Google** (seen: refused at 15:33, delivered at 15:39 after unblocking); maximum retry delay unknown.
+- Per-app settings (e.g. Outlook/Gmail do not notify a mail sent from your own address).
 
-**Sans le Gardien**, deux parades manuelles : ranger les apps importantes dans un **dossier** (toucher un dossier ne pré-démarre rien) ; faire défiler le tiroir d'apps depuis une **marge vide**, pas avec le doigt sur les icônes.
+**Without Guardian**, two manual workarounds: put important apps in a **folder** (touching a folder pre-starts nothing); scroll the app drawer from an **empty margin**, not with your finger on the icons.
 
-**Mode batterie « intelligent »** : aucun souci. vivo gèle l'app quand vous en sortez mais la dégèle dès qu'une notification arrive (mesuré : 1,1 s entre la réception par Google et l'affichage). Inutile de passer vos apps en « consommation élevée ».
+**"Smart" battery mode**: no problem. vivo freezes the app when you leave it but unfreezes it as soon as a notification arrives (measured: 1.1 s between reception by Google and display). No need to set your apps to "high background power consumption".
 
-## Bonus : YouTube patché (ReVanced / Morphe) avec GmsCore
+## Bonus: patched YouTube (ReVanced / Morphe) with GmsCore
 
-Les notifications de YouTube patché passent par **GmsCore** (`app.revanced.android.gms`), pas par Google Play Services. vivo le tue comme une app ordinaire et il **ne se reconnecte pas tout seul** (vu : 3 h sans notifications). S'il est installé, le Gardien lui envoie à chaque allumage d'écran et toutes les 5 min un signal « doux » : reconnexion s'il est tombé, simple ping sinon (aucune reconnexion inutile). Mesuré : tué à 19:01:07, reconnecté à 19:01:22.
+Patched YouTube notifications go through **GmsCore** (`app.revanced.android.gms`), not Google Play Services. vivo kills it like any ordinary app and it **does not reconnect on its own** (seen: 3 h without notifications). If it is installed, Guardian sends it a "soft" signal at every screen-on and every 5 min: reconnection if it dropped, a simple heartbeat otherwise (no needless reconnection). Measured: killed at 19:01:07, reconnected at 19:01:22.
 
-Reconnexion manuelle :
+Manual reconnection:
 ```bash
 adb shell am broadcast -n app.revanced.android.gms/org.microg.gms.gcm.TriggerReceiver -a org.microg.gms.gcm.FORCE_TRY_RECONNECT
 ```
 
 ---
 
-## Mettre à jour, annuler, désinstaller
+## Update, undo, uninstall
 
-- **Mettre à jour** : relancer `installer.cmd` avec le nouvel APK (ou installer l'APK par-dessus). Le cadenas et les réglages sont conservés.
-- **Désinstaller** :
+- **Update**: run `install.cmd` again with the new APK (or install the APK on top). The lock and settings are kept.
+- **Uninstall**:
   ```bash
   adb uninstall com.phili.notifguard
   ```
-  (le cadenas est perdu ; à reposer après une réinstallation).
-- **Annuler les commandes** une par une :
+  (the lock is lost; put it on again after reinstalling).
+- **Undo the commands** one by one:
 
-| Annule l'étape | Commande |
+| Undoes step | Command |
 |---|---|
 | 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS default` |
 | 4 | `adb shell cmd appops set com.phili.notifguard AUTO_REVOKE_PERMISSIONS_IF_UNUSED default` |
 | 5 | `adb shell cmd deviceidle whitelist -com.phili.notifguard` |
-| 6 | Paramètres → Accessibilité → Gardien notifs → désactiver |
+| 6 | Settings → Accessibility → Guardian → turn off |
 | 7 | `adb shell cmd deviceidle whitelist -app.revanced.android.gms` |
 
-## Compiler soi-même
+## Build it yourself
 
-Sans Gradle : JDK 17+ et Android SDK (platform 36, build-tools 36.0.0, `ANDROID_HOME` défini ou SDK dans `~/Android/Sdk`).
+No Gradle: JDK 17+ and Android SDK (platform 36, build-tools 36.0.0, `ANDROID_HOME` set or SDK in `~/Android/Sdk`).
 
 ```bash
 bash build.sh
 ```
 
-Produit `NotifGuard.apk` signé avec votre clé de debug. Avec votre propre clé : `KEYSTORE=… KEYSTORE_PASS=… KEY_ALIAS=… bash build.sh`. Un APK signé avec une autre clé ne s'installe pas par-dessus la version publiée : désinstaller d'abord.
+Produces `Guardian.apk` signed with your debug key. With your own key: `KEYSTORE=… KEYSTORE_PASS=… KEY_ALIAS=… bash build.sh`. An APK signed with another key does not install on top of the published version: uninstall first.
 
-## Licence
+Translations: `res/values/strings.xml` (English) and `res/values-fr/strings.xml` (French). Pull requests for other languages are welcome.
 
-[MIT](LICENSE). Projet personnel, sans lien avec vivo. Fourni tel quel : utilisez-le en connaissance de cause.
+## License
+
+[MIT](LICENSE). Personal project, not affiliated with vivo. Provided as is: use at your own discretion.

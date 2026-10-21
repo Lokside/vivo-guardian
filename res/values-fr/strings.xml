@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guard_description">Débloque automatiquement toutes vos apps autorisées à envoyer des notifications quand vivo les arrête de force (pré-démarrage du lanceur, nettoyeur, gestionnaire de ressources), pour qu\'elles continuent de recevoir leurs notifications. Ne lit aucun contenu de l\'écran.</string>
+
+    <!-- Ecran principal -->
+    <string name="btn_accessibility">Réglages d\'accessibilité</string>
+    <string name="btn_lock">Verrouiller dans les apps récentes (une fois)</string>
+    <string name="btn_refresh">Rafraîchir</string>
+    <string name="status_on">✅ Service actif</string>
+    <string name="status_off">❌ Service désactivé : Réglages d\'accessibilité → Guardian → activer</string>
+    <string name="watched_count">%1$d apps surveillées (autorisées à notifier).</string>
+    <string name="blocked_now">Bloquées en ce moment :</string>
+    <string name="none_ok">aucune ✓</string>
+    <string name="cannot_unblock">Impossibles à débloquer (aucun point d\'entrée) :</string>
+    <string name="none">aucune</string>
+    <string name="journal_header">Journal (récent en haut) :</string>
+    <string name="journal_empty">(vide)</string>
+
+    <!-- Ecran du cadenas -->
+    <string name="lock_steps">Verrouiller Guardian dans les apps récentes (une seule fois)\n\n1. Ouvrez les apps récentes (glisser depuis le bas de l\'écran et maintenir).\n\n2. Posez le cadenas sur la carte « Guardian » (selon la version : glisser la carte vers le bas, ou appui long puis Verrouiller).\n\n3. Touchez la carte pour revenir ici, puis appuyez sur « Terminé ».\n\n⚠️ Ne fermez jamais cette carte en la balayant vers le haut : vivo arrêterait Guardian de force et il faudrait réactiver son service d\'accessibilité.\n\nLe cadenas reste mémorisé après « Terminé », après un redémarrage et après une mise à jour. Il ne se perd qu\'en désinstallant l\'app.</string>
+    <string name="lock_done">Terminé : retirer la carte</string>
+
+    <!-- Journal -->
+    <string name="j_stopped_by_user">%1$s arrêté depuis les Paramètres : laissé arrêté</string>
+    <string name="j_force_stop">arrêt forcé détecté : %1$s</string>
+    <string name="j_service_started">service démarré (%1$d apps surveillées sur %2$d installées visibles)</string>
+    <string name="j_gmscore">GmsCore : maintien de la connexion actif (allumage d\'écran + toutes les 5 min)</string>
+    <string name="j_service_stopped">service arrêté</string>
+    <string name="j_found_blocked">%1$s trouvé bloqué</string>
+    <string name="j_found_blocked_reason">%1$s trouvé bloqué (%2$s)</string>
+    <string name="reason_screen_on">écran allumé</string>
+    <string name="reason_periodic">contrôle périodique</string>
+    <string name="reason_start">démarrage du service</string>
+    <string name="j_no_entry">%1$s : aucun point d\'entrée, impossible de le débloquer (laissé tranquille jusqu\'à sa prochaine ouverture)</string>
+    <string name="j_unblocked">%1$s débloqué ✓</string>
+    <string name="j_failed">%1$s : échec du déblocage (vivo bloque peut-être le réveil ; autoriser son démarrage associé) — laissé tranquille jusqu\'à sa prochaine ouverture</string>
+</resources>

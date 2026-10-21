@@ -26,31 +26,31 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * vivo (ROM chinoise) arrete de force une app quand le doigt se pose sur son icone sans l'ouvrir
- * (pre-demarrage du lanceur). Une app arretee de force ne recoit plus ses notifications Google
- * tant qu'on ne la rouvre pas. Ce service la debloque aussitot en envoyant un signal a l'un de ses
- * recepteurs exportes (ce qui leve l'etat "stopped"), sans afficher l'app.
+ * vivo (Chinese ROM) force-stops an app when a finger lands on its icon without opening it (launcher
+ * pre-start), and also from its cleaner and resource manager. A force-stopped app no longer receives its
+ * Google notifications until it is opened again. This service unblocks it right away by sending a signal
+ * to one of its exported receivers (which clears the "stopped" state), without showing the app.
  *
- * Apps surveillees : toutes les apps installees par l'utilisateur (et apps Google mises a jour)
- * qui ont le droit d'afficher des notifications, hors apps systeme vivo / Android.
+ * Watched apps: every app installed by the user (and updated Google apps) that is allowed to post
+ * notifications, except vivo / Android system apps.
  */
 public class GuardService extends AccessibilityService {
 
     private static final String WAKE_ACTION = "com.phili.notifguard.WAKE";
-    // Actions dont les recepteurs sont presque toujours exportes et sans permission.
+    // Actions whose receivers are almost always exported and without permission.
     private static final String[] ENTRY_ACTIONS = {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
     };
-    // Apps systeme jamais reveillees (services chinois desactives, socle Android).
+    // System apps never woken up (Chinese services, Android core).
     private static final String[] EXCLUDED_PREFIXES = {
             "android", "com.android.", "com.vivo.", "com.bbk.", "com.iqoo.", "vivo.", "com.mediatek.",
     };
     private static final String SETTINGS_PKG = "com.android.settings";
-    // GmsCore (microG de ReVanced) : c'est lui qui recoit les notifications de YouTube Morphe. vivo le tue
-    // (memoire) sans l'arreter de force, et il ne se reconnecte pas toujours. Un signal "doux" a son
-    // TriggerReceiver le reconnecte s'il est deconnecte, sinon il ne fait qu'un ping (connexion conservee).
+    // GmsCore (ReVanced's microG) receives the notifications of patched YouTube. vivo kills it (memory)
+    // without force-stopping it, and it does not always reconnect. A "soft" signal to its TriggerReceiver
+    // reconnects it if it is disconnected, otherwise it only sends a heartbeat (connection kept).
     private static final ComponentName GMSCORE_TRIGGER = new ComponentName(
             "app.revanced.android.gms", "org.microg.gms.gcm.TriggerReceiver");
     private static final long SWEEP_PERIOD_MS = 5 * 60 * 1000;
@@ -61,11 +61,11 @@ public class GuardService extends AccessibilityService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, List<ComponentName>> entryCache = new HashMap<>();
     private final Map<String, Long> lastWake = new HashMap<>();
-    // Apps a ne plus toucher tant que leur etat ne change pas (rouvertes, mises a jour ou arretees a nouveau) :
-    // arretees par l'utilisateur, sans point d'entree, ou dont le deblocage a echoue.
+    // Apps left alone until their state changes (reopened, updated or force-stopped again):
+    // stopped by the user, without entry point, or whose unblocking failed.
     private final Set<String> leftAlone = new HashSet<>();
-    // Liste memorisee des apps surveillees : recalculee (parcours de toutes les apps installees) seulement
-    // a l'installation / mise a jour / suppression d'une app, a l'allumage de l'ecran et toutes les 5 min.
+    // Cached list of watched apps: rebuilt (scan of all installed apps) only when an app is installed /
+    // updated / removed, when the screen turns on and every 5 min.
     private List<String> watchedCache;
     private long lastSweep;
     private String foregroundPkg = "";
@@ -78,13 +78,13 @@ public class GuardService extends AccessibilityService {
             if (Intent.ACTION_PACKAGE_RESTARTED.equals(action)) {
                 if (!isWatched(context, pkg)) return;
                 if (stoppedByUser()) {
-                    Journal.write(context, label(context, pkg) + " arrêté depuis les Paramètres : laissé arrêté");
+                    Journal.write(context, context.getString(R.string.j_stopped_by_user, label(context, pkg)));
                     leftAlone.add(pkg);
                     return;
                 }
-                leftAlone.remove(pkg); // nouvel arret : on retente une fois
-                Journal.write(context, "arrêt forcé détecté : " + label(context, pkg));
-                // Laisse le systeme finir l'arret avant de reveiller l'app.
+                leftAlone.remove(pkg); // new stop: try again once
+                Journal.write(context, context.getString(R.string.j_force_stop, label(context, pkg)));
+                // Let the system finish the stop before waking the app.
                 handler.postDelayed(() -> wake(pkg, 0), 300);
             } else if (Intent.ACTION_PACKAGE_ADDED.equals(action)
                     || Intent.ACTION_PACKAGE_REPLACED.equals(action)
@@ -96,7 +96,7 @@ public class GuardService extends AccessibilityService {
                 }
                 watchedCache = null;
             } else {
-                sweep("écran allumé", true);
+                sweep(getString(R.string.reason_screen_on), true);
                 pokeGmsCore();
             }
         }
@@ -105,7 +105,7 @@ public class GuardService extends AccessibilityService {
     private final Runnable periodicSweep = new Runnable() {
         @Override
         public void run() {
-            sweep("contrôle périodique", true);
+            sweep(getString(R.string.reason_periodic), true);
             pokeGmsCore();
             handler.postDelayed(this, SWEEP_PERIOD_MS);
         }
@@ -123,16 +123,16 @@ public class GuardService extends AccessibilityService {
         register(packages);
         register(screen);
 
-        Journal.write(this, "service démarré (" + watched(true).size() + " apps surveillées sur "
-                + getPackageManager().getInstalledApplications(0).size() + " installées visibles)");
-        sweep("démarrage du service", false);
+        Journal.write(this, getString(R.string.j_service_started, watched(true).size(),
+                getPackageManager().getInstalledApplications(0).size()));
+        sweep(getString(R.string.reason_start), false);
         if (pokeGmsCore()) {
-            Journal.write(this, "GmsCore : maintien de la connexion actif (allumage d'écran + toutes les 5 min)");
+            Journal.write(this, getString(R.string.j_gmscore));
         }
         handler.postDelayed(periodicSweep, SWEEP_PERIOD_MS);
     }
 
-    /** Envoie le signal doux a GmsCore s'il est installe. Renvoie false s'il est absent. */
+    /** Sends the soft signal to GmsCore if it is installed. Returns false if it is absent. */
     private boolean pokeGmsCore() {
         try {
             ApplicationInfo ai = getPackageManager().getApplicationInfo(GMSCORE_TRIGGER.getPackageName(), 0);
@@ -160,13 +160,13 @@ public class GuardService extends AccessibilityService {
         if (pkg != null) {
             foregroundPkg = pkg.toString();
         }
-        // Chaque changement de fenetre (retour a l'accueil, ouverture d'une app...) sert de rappel.
+        // Every window change (back to home, opening an app...) serves as a reminder.
         if (SystemClock.elapsedRealtime() - lastSweep > EVENT_SWEEP_MIN_GAP_MS) {
-            sweep(null, false); // controle leger : seulement les apps deja surveillees
+            sweep(null, false); // light check: only the apps already watched
         }
     }
 
-    /** Un "Forcer l'arret" fait par l'utilisateur vient forcement de l'app Parametres au premier plan. */
+    /** A "Force stop" made by the user necessarily comes from the Settings app in the foreground. */
     private boolean stoppedByUser() {
         return foregroundPkg.startsWith(SETTINGS_PKG);
     }
@@ -182,7 +182,7 @@ public class GuardService extends AccessibilityService {
             unregisterReceiver(receiver);
         } catch (IllegalArgumentException ignored) {
         }
-        Journal.write(this, "service arrêté");
+        Journal.write(this, getString(R.string.j_service_stopped));
         super.onDestroy();
     }
 
@@ -197,15 +197,16 @@ public class GuardService extends AccessibilityService {
         lastSweep = SystemClock.elapsedRealtime();
         for (String pkg : watched(refreshList)) {
             if (!isStopped(this, pkg)) {
-                lastWake.remove(pkg); // l'app a ete rouverte : de nouveau eligible
+                lastWake.remove(pkg); // the app was reopened: eligible again
                 leftAlone.remove(pkg);
                 continue;
             }
             if (leftAlone.contains(pkg)) continue;
             Long last = lastWake.get(pkg);
             if (last != null && SystemClock.elapsedRealtime() - last < REWAKE_MIN_GAP_MS) continue;
-            Journal.write(this, label(this, pkg) + " trouvé bloqué"
-                    + (reason == null ? "" : " (" + reason + ")"));
+            Journal.write(this, reason == null
+                    ? getString(R.string.j_found_blocked, label(this, pkg))
+                    : getString(R.string.j_found_blocked_reason, label(this, pkg), reason));
             wake(pkg, 0);
         }
     }
@@ -222,8 +223,7 @@ public class GuardService extends AccessibilityService {
         List<ComponentName> entries = entries(pkg);
         if (entries.isEmpty()) {
             leftAlone.add(pkg);
-            Journal.write(this, label(this, pkg) + " : aucun point d'entrée, impossible de le débloquer"
-                    + " (laissé tranquille jusqu'à sa prochaine ouverture)");
+            Journal.write(this, getString(R.string.j_no_entry, label(this, pkg)));
             return;
         }
         ComponentName target = entries.get(attempt % entries.size());
@@ -234,13 +234,12 @@ public class GuardService extends AccessibilityService {
 
         handler.postDelayed(() -> {
             if (!isStopped(this, pkg)) {
-                Journal.write(this, label(this, pkg) + " débloqué ✓");
+                Journal.write(this, getString(R.string.j_unblocked, label(this, pkg)));
             } else if (attempt + 1 < MAX_ATTEMPTS) {
                 wake(pkg, attempt + 1);
             } else {
                 leftAlone.add(pkg);
-                Journal.write(this, label(this, pkg) + " : échec du déblocage (vivo bloque peut-être le réveil ; "
-                        + "autoriser son démarrage associé) — laissé tranquille jusqu'à sa prochaine ouverture");
+                Journal.write(this, getString(R.string.j_failed, label(this, pkg)));
             }
         }, 1500);
     }
@@ -264,7 +263,7 @@ public class GuardService extends AccessibilityService {
                 addIfUsable(found, ri.activityInfo);
             }
         }
-        // A defaut (ex. Doctolib), n'importe quel recepteur exporte et sans permission fait l'affaire.
+        // Otherwise (e.g. Doctolib), any exported receiver without permission will do.
         try {
             PackageInfo info = pm.getPackageInfo(pkg, PackageManager.GET_RECEIVERS);
             if (info.receivers != null) {
@@ -287,7 +286,7 @@ public class GuardService extends AccessibilityService {
         }
     }
 
-    /** Apps de l'utilisateur (et apps systeme mises a jour hors vivo/Android) autorisees a notifier. */
+    /** User apps (and updated system apps outside vivo/Android) allowed to post notifications. */
     static List<String> watchedPackages(Context context) {
         PackageManager pm = context.getPackageManager();
         List<String> result = new ArrayList<>();

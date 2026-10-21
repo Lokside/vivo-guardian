@@ -1,21 +1,26 @@
-# Historique
+# Changelog
 
-## v11 — 21/10/2026 (première version publique)
-- Écran intégré pour poser le cadenas vivo dans les apps récentes (bouton « Verrouiller dans les apps récentes ») : plus besoin de compiler une version temporaire avec carte.
-- Scripts d'installation ADB (`scripts/installer.cmd`, `scripts/installer.sh`) et de vérification.
-- APK signé avec une clé de publication dédiée.
+## v12 — 21/10/2026
+- New name: **Guardian** (was "Gardien notifs").
+- Interface in English, French translation on phones set to French.
+- Documentation and ADB scripts in English (`install.cmd`, `install.sh`, `check.cmd`); French README kept.
+
+## v11 — 21/10/2026 (first public version)
+- Built-in screen to put the vivo lock on in recent apps ("Lock in recent apps" button): no more need to build a temporary version with a card.
+- ADB install and check scripts.
+- APK signed with a dedicated release key.
 
 ## v10 — 19/10/2026
-- Aucune carte dans les apps récentes (`excludeFromRecents` + `finishAndRemoveTask()`), protection contre « Tout effacer » par le cadenas vivo.
+- No card in recent apps (`excludeFromRecents` + `finishAndRemoveTask()`), protection against "Clear all" through the vivo lock.
 
 ## v6 — 18/10/2026
-- Maintien de la connexion de GmsCore (microG de ReVanced / Morphe).
+- Keeps GmsCore (ReVanced / Morphe microG) connected.
 
 ## v5 — 18/10/2026
-- Liste des apps surveillées mémorisée : contrôles fréquents quasi gratuits.
+- Cached list of watched apps: frequent checks are almost free.
 
 ## v4 — 18/10/2026
-- Une app impossible à débloquer n'est notée qu'une fois puis laissée tranquille.
+- An app that cannot be unblocked is logged only once, then left alone.
 
 ## v3 — 18/10/2026
-- Surveille toutes les apps autorisées à notifier ; respecte un « Forcer l'arrêt » fait depuis les Paramètres.
+- Watches every app allowed to post notifications; respects a "Force stop" done from Settings.

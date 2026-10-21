@@ -14,7 +14,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/** Petit journal texte (200 dernieres lignes), lisible dans l'app et via logcat (tag NotifGuard). */
+/** Small text log (last 200 lines), shown in the app and in logcat (tag NotifGuard). */
 final class Journal {
     private static final String TAG = "NotifGuard";
     private static final String FILE = "journal.txt";
@@ -24,7 +24,7 @@ final class Journal {
     }
 
     static synchronized void write(Context context, String message) {
-        String line = new SimpleDateFormat("dd/MM HH:mm:ss", Locale.FRANCE).format(new Date()) + "  " + message;
+        String line = new SimpleDateFormat("dd/MM HH:mm:ss", Locale.ROOT).format(new Date()) + "  " + message;
         Log.i(TAG, message);
         List<String> lines = read(context);
         lines.add(line);
@@ -34,7 +34,7 @@ final class Journal {
         try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), FILE))) {
             out.write(String.join("\n", lines).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            Log.w(TAG, "écriture du journal impossible", e);
+            Log.w(TAG, "cannot write the log", e);
         }
     }
 

@@ -7,10 +7,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * Ecran temporaire, le seul de l'app visible dans les apps recentes : il sert a poser une fois le cadenas
- * vivo sur la carte du Gardien. vivo memorise ce cadenas par app (meme apres redemarrage) ; sans lui,
- * "Tout effacer" arrete de force le Gardien et Android desactive son service d'accessibilite.
- * "Termine" retire la carte sans l'arreter (un balayage de la carte, lui, l'arreterait de force).
+ * Temporary screen, the only one of the app shown in recent apps: it is used to put the vivo lock on
+ * Guardian's card once. vivo remembers this lock per app (even after a reboot); without it, "Clear all"
+ * force-stops Guardian and Android turns its accessibility service off.
+ * "Done" removes the card without stopping the app (swiping the card away would force-stop it).
  */
 public class LockActivity extends Activity {
 
@@ -25,19 +25,11 @@ public class LockActivity extends Activity {
 
         TextView steps = new TextView(this);
         steps.setTextSize(16);
-        steps.setText("Verrouiller le Gardien dans les apps récentes (une seule fois)\n\n"
-                + "1. Ouvrez les apps récentes (glisser depuis le bas de l'écran et maintenir).\n\n"
-                + "2. Posez le cadenas sur la carte « Gardien notifs » "
-                + "(selon la version : glisser la carte vers le bas, ou appui long puis Verrouiller).\n\n"
-                + "3. Touchez la carte pour revenir ici, puis appuyez sur « Terminé ».\n\n"
-                + "⚠️ Ne fermez jamais cette carte en la balayant vers le haut : vivo arrêterait le Gardien "
-                + "de force et il faudrait réactiver son service d'accessibilité.\n\n"
-                + "Le cadenas reste mémorisé après « Terminé », après un redémarrage et après une mise à jour. "
-                + "Il ne se perd qu'en désinstallant l'app.");
+        steps.setText(R.string.lock_steps);
         root.addView(steps);
 
         Button done = new Button(this);
-        done.setText("Terminé : retirer la carte");
+        done.setText(R.string.lock_done);
         done.setOnClickListener(v -> finishAndRemoveTask());
         root.addView(done);
 
