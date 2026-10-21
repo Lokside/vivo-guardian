@@ -1,0 +1,7 @@
+build/
+*.apk
+*.idsig
+*.jks
+*.keystore
+# Sauvegarde locale d'un reglage du telephone de l'auteur.
+third_srceen_read_packages.original.txt

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.phili.notifguard">
+
+    <!-- Toutes les apps sont surveillees : il faut les "voir" pour lire leur etat et les reveiller. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- Norme chinoise (vivo, Xiaomi, OPPO...) : sans elle, la liste ne contient que les apps systeme. -->
+    <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
+
+    <application
+        android:label="Gardien notifs"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
+
+        <!-- Ecran d'etat : journal des deblocages + acces au reglage d'accessibilite.
+             Jamais dans les apps recentes (l'utilisateur n'en veut pas). La protection contre
+             "Tout effacer" vient du cadenas vivo pose une fois sur l'app (liste "notclean"). -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Seul ecran visible dans les apps recentes, le temps de poser le cadenas vivo une fois. -->
+        <activity
+            android:name=".LockActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.phili.notifguard.lock" />
+
+        <!-- Service d'accessibilite : maintenu en vie par Android, il debloque
+             les apps surveillees des que vivo les arrete de force. -->
+        <service
+            android:name=".GuardService"
+            android:exported="true"
+            android:label="Gardien notifs"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/guard_service" />
+        </service>
+    </application>
+</manifest>
