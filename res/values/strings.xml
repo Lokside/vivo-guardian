@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Guardian</string>
-    <string name="guard_description">Automatically unblocks every app allowed to send notifications when vivo force-stops it (launcher pre-start, cleaner, resource manager), so it keeps receiving its notifications. Reads no screen content.</string>
     <color name="ic_background">#3949AB</color>
 
     <!-- Main screen -->
-    <string name="btn_accessibility">Accessibility settings</string>
+    <string name="btn_notification_access">Notification access settings</string>
+    <string name="btn_usage_access">Usage access settings (optional)</string>
+    <string name="btn_app_info">Guardian app settings (autostart)</string>
     <string name="btn_lock">Lock in recent apps (once)</string>
     <string name="btn_refresh">Refresh</string>
-    <string name="status_on">✅ Service active</string>
-    <string name="status_off">❌ Service disabled: Accessibility settings → Guardian → turn on</string>
+    <string name="status_on">✅ Service active (no accessibility service)</string>
+    <string name="status_waiting">⏳ Notification access granted, service not connected yet: press Refresh in a few seconds. If it stays like this: allow autostart for Guardian (app settings button), then turn notification access off and on again.</string>
+    <string name="status_off">❌ Service disabled: Notification access settings → Guardian → turn on</string>
+    <string name="usage_on">✅ Usage access: a \"Force stop\" done from Settings is respected</string>
+    <string name="usage_off">ℹ️ No usage access (optional): an app you force-stop from Settings is unblocked too</string>
     <string name="watched_count">%1$d apps watched (allowed to send notifications).</string>
     <string name="blocked_now">Blocked right now:</string>
     <string name="none_ok">none ✓</string>
@@ -19,7 +23,7 @@
     <string name="journal_empty">(empty)</string>
 
     <!-- Lock screen -->
-    <string name="lock_steps">Lock Guardian in recent apps (once)\n\n1. Open recent apps (swipe up from the bottom of the screen and hold).\n\n2. Put the lock on the \"Guardian\" card (depending on the version: drag the card down, or long-press it then Lock).\n\n3. Tap the card to come back here, then press \"Done\".\n\n⚠️ Never close this card by swiping it up: vivo would force-stop Guardian and its accessibility service would have to be turned on again.\n\nThe lock is remembered after \"Done\", after a reboot and after an update. It is only lost if the app is uninstalled.</string>
+    <string name="lock_steps">Lock Guardian in recent apps (once)\n\n1. Open recent apps (swipe up from the bottom of the screen and hold).\n\n2. Put the lock on the \"Guardian\" card (depending on the version: drag the card down, or long-press it then Lock).\n\n3. Tap the card to come back here, then press \"Done\".\n\n⚠️ Never close this card by swiping it up: vivo would force-stop Guardian.\n\nThe lock is remembered after \"Done\", after a reboot and after an update. It is only lost if the app is uninstalled.</string>
     <string name="lock_done">Done: remove the card</string>
 
     <!-- Log -->
@@ -28,9 +32,9 @@
     <string name="j_service_started">service started (%1$d apps watched out of %2$d visible installed apps)</string>
     <string name="j_gmscore">GmsCore: keep-alive active (screen on + every 5 min)</string>
     <string name="j_service_stopped">service stopped</string>
-    <string name="j_found_blocked">%1$s found blocked</string>
     <string name="j_found_blocked_reason">%1$s found blocked (%2$s)</string>
     <string name="reason_screen_on">screen on</string>
+    <string name="reason_screen_off">after screen off</string>
     <string name="reason_periodic">periodic check</string>
     <string name="reason_start">service start</string>
     <string name="j_no_entry">%1$s: no entry point, cannot unblock it (left alone until it is next opened)</string>

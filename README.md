@@ -2,9 +2,11 @@
 
 A small **no-root** Android app that stops **vivo** phones from cutting off your apps' notifications.
 
-**Download**: [latest version (APK)](https://github.com/Lokside/vivo-guardian/releases/latest) · [technical details and evidence](docs/TECHNICAL.md) · [changelog](CHANGELOG.md) · 🇫🇷 [Version française](README.fr.md)
+**Download**: [latest version (APK)](https://github.com/mohsinian/vivo-guardian/releases/latest) · [technical details and evidence](docs/TECHNICAL.md) · [changelog](CHANGELOG.md) · 🇫🇷 [Version française](README.fr.md)
 
 ---
+
+> **Fork without an accessibility service** (versions `-noa11y`). This is a fork of [Lokside/vivo-guardian](https://github.com/Lokside/vivo-guardian): the research, the method and the original app are Lokside's. The one difference: banking apps (seen: BRAC Bank Astha) refuse to run while a third-party accessibility service is enabled, so here Guardian is kept alive as a **notification listener** instead, with every notification type disabled in its manifest. It is not on the accessibility list at all and receives no notification content. Nothing is hidden from the banking app: the accessibility service simply no longer exists. If no banking app complains on your phone, use the original. See [changelog](CHANGELOG.md) and [technical details](docs/TECHNICAL.md#4-keep-alive-a-notification-listener-not-an-accessibility-service).
 
 ## The problem
 
@@ -20,31 +22,32 @@ Apps you open **rarely** are hit the hardest (news, banking, smart home, work me
 
 ## What Guardian does
 
-It is an **accessibility service**: Android keeps it alive and tells it as soon as an app is force-stopped. Guardian then sends a signal to one of that app's receivers, which restarts it in the background **without showing anything** and clears the "stopped" state. It does not run in a loop: it waits for Android to tell it.
+It is a **notification listener** (not an accessibility service): Android keeps it alive and tells it as soon as an app is force-stopped. Guardian then sends a signal to one of that app's receivers, which restarts it in the background **without showing anything** and clears the "stopped" state. It does not run in a loop: it waits for Android to tell it.
 
 | When | Action |
 |---|---|
 | an app is force-stopped | unblocks it (1 to 2 s) |
-| app switch (at most every 20 s) | checks the watched apps |
+| 4 s after the screen turns off | checks the watched apps |
 | screen on, then every 5 min while the screen is on | rebuilds the app list + reconnects GmsCore if installed |
 | phone asleep | nothing (no alarm, no wakelock) |
 
 - **Watched apps**: every installed app allowed to send notifications, except vivo / Android system apps. New apps are picked up automatically.
-- A **"Force stop" done from Settings** is respected (the app stays stopped).
-- An app that cannot be unblocked is logged **once**, then left alone.
+- A **"Force stop" done from Settings** is respected (the app stays stopped) if Guardian has the optional **usage access**; without it, that app is unblocked like the others.
+- An app that cannot be unblocked is logged **once**, then left alone. "unblock failed" means vivo refused the wake-up: allow **autostart** for that app (i Manager → App manager → Autostart, or Settings → Apps → the app → Permissions). Seen on the test phone: every app with autostart off failed, every app with autostart on (Gmail, WhatsApp) was unblocked. From a computer: `adb shell content query --uri content://com.vivo.permissionmanager.provider.permission/bg_start_up_apps` (`currentstate=0` = allowed).
 - The app screen shows: service status, apps blocked right now, apps that cannot be unblocked, log.
 - Interface in **English**, and in **French** on phones set to French.
 
-**Measured over a full day unplugged** (10 h 20, `dumpsys batterystats`): **0.73 mAh out of 1,794 mAh used (0.04 %)**, 7.9 s of CPU, 0 wakelocks, 0 alarms, 0 network.
+**Measured over a full day unplugged** (original accessibility version, 10 h 20, `dumpsys batterystats`): **0.73 mAh out of 1,794 mAh used (0.04 %)**, 7.9 s of CPU, 0 wakelocks, 0 alarms, 0 network.
 
-**Privacy**: no Internet permission, reads **no** screen content (`canRetrieveWindowContent=false`), log stored on the phone only. Only permissions: see the list of installed apps (`QUERY_ALL_PACKAGES` and `GET_INSTALLED_APPS`, mandatory on Chinese ROMs). The whole code is ~550 lines: [src/](src/com/phili/notifguard).
+**Privacy**: no Internet permission, **no accessibility service** (it cannot see or touch the screen), log stored on the phone only. It holds "notification access" only to stay alive: all notification types are disabled in the manifest (`disabled_filter_types`), so Android delivers it no notification, and it contains no code that reads one. Permissions: see the list of installed apps (`QUERY_ALL_PACKAGES` and `GET_INSTALLED_APPS`, mandatory on Chinese ROMs), and the optional usage access (`PACKAGE_USAGE_STATS`), used only to know whether the Settings app is on screen when an app is stopped. The whole code is ~550 lines: [src/](src/com/phili/notifguard).
 
 ## Compatibility
 
 | | |
 |---|---|
-| Tested | **vivo X Fold6**, OriginOS 7 **Chinese ROM**, Android 17, locked bootloader, no root |
-| Probably | other vivo / iQOO phones on OriginOS (same system code) — feedback welcome in *Issues* |
+| Tested | **vivo X Fold6**, OriginOS 7 **Chinese ROM**, Android 17, locked bootloader, no root (accessibility version, v12) |
+| Tested (this build) | vivo **V2502DA**, OriginOS 7, Android 17, no root |
+| Probably | other vivo / iQOO phones on OriginOS (same system code) |
 | Not tested | global ROMs (FuntouchOS / international OriginOS), other brands |
 | Minimum | Android 8.0 |
 
@@ -65,19 +68,20 @@ This method reproduces the tested setup exactly.
 - Settings → System → **Developer options** → turn on **USB debugging** (and **Install via USB** if present).
 - Plug in the cable, accept the computer's fingerprint on the phone.
 
-**3. Download** from the [Releases page](https://github.com/Lokside/vivo-guardian/releases/latest): `Guardian-v12.apk` and `install.cmd` (Windows) or `install.sh` (macOS/Linux), into the **same folder**.
+**3. Download** from the [Releases page](https://github.com/mohsinian/vivo-guardian/releases/latest): `Guardian.apk` and `install.cmd` (Windows) or `install.sh` (macOS/Linux), into the **same folder**.
 
 **4. Run the script** (double-click `install.cmd`, or `bash install.sh`). It runs:
 
 | Step | Command | Why |
 |---|---|---|
-| 1 | `adb install -r Guardian-v12.apk` | installs the app — **accept on the phone**, the vivo prompt expires quickly |
+| 1 | `adb install -r Guardian.apk` | installs the app — **accept on the phone**, the vivo prompt expires quickly |
 | 2 | `adb shell pm grant com.phili.notifguard com.android.permission.GET_INSTALLED_APPS` | without it, the app only sees system apps (0 apps watched) |
-| 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS allow` | Android 13+ greys out accessibility for apps installed outside a store; vivo has no ⋮ menu to unlock it |
+| 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS allow` | Android 13+ greys out notification access for apps installed outside a store; vivo has no ⋮ menu to unlock it |
 | 4 | `adb shell cmd appops set com.phili.notifguard AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore` | = "Pause app activity if unused" off: Android will never remove its permissions |
 | 5 | `adb shell cmd deviceidle whitelist +com.phili.notifguard` | exempts it from Android battery optimisation |
-| 6 | adds `com.phili.notifguard/com.phili.notifguard.GuardService` to `settings secure enabled_accessibility_services` | turns the service on, **without turning off** your other accessibility services |
-| 7 | `adb shell cmd deviceidle whitelist +app.revanced.android.gms` | only if GmsCore (ReVanced / Morphe microG) is installed |
+| 6 | `adb shell cmd notification allow_listener com.phili.notifguard/com.phili.notifguard.GuardService` | turns the service on (notification access) |
+| 7 | `adb shell cmd appops set com.phili.notifguard GET_USAGE_STATS allow` | optional usage access: a "Force stop" done from Settings is respected |
+| 8 | `adb shell cmd deviceidle whitelist +app.revanced.android.gms` | only if GmsCore (ReVanced / Morphe microG) is installed |
 
 Then it opens the app on the phone.
 
@@ -85,22 +89,23 @@ Then it opens the app on the phone.
 
 ### Without a computer
 
-1. Download `Guardian-v12.apk` on the phone and install it (allow installs from the browser / file manager).
+1. Download `Guardian.apk` on the phone and install it (allow installs from the browser / file manager).
 2. Open **Guardian** → allow "list of installed apps".
-3. **Accessibility settings** button → Guardian → turn on → **Home button**.
+3. **Notification access settings** button → Guardian → turn on.
    - If the switch is **greyed out** ("restricted setting"): you need the command from step 3 above, so a computer.
+   - Optional: **Usage access settings** button → Guardian → turn on (a "Force stop" done from Settings is then respected).
 4. Settings → Apps → Guardian → turn off "Pause app activity if unused" (if present).
 5. Put the lock on (below).
 
 ### The vivo lock (mandatory)
 
-Without it, **"Clear all" force-stops Guardian** (vivo's cleaner force-stops every third-party accessibility service that is not on its internal list) and Android then turns its service off. The recent-apps lock is **remembered per app** and survives reboots and updates.
+Without it, **"Clear all" force-stops Guardian** like any other app. The recent-apps lock is **remembered per app** and survives reboots and updates.
 
 1. In Guardian: **"Lock in recent apps (once)"** button.
 2. Open **recent apps** → put the **lock** on the "Guardian" card (drag the card down, or long-press → Lock, depending on the version).
 3. Tap the card to come back to Guardian → **"Done: remove the card"**.
 
-⚠️ **Never** close Guardian's card by swiping it up: vivo force-stops it (`single-cleaner`). The rest of the time, Guardian has no card in recent apps.
+⚠️ **Never** close Guardian's card by swiping it up: vivo force-stopped the accessibility version that way (`single-cleaner`); not re-tested with this fork. The rest of the time, Guardian has no card in recent apps.
 
 ### Recommended vivo settings (optional)
 
@@ -111,7 +116,8 @@ In **i Manager → App manager** (or Settings → Battery) for *Guardian*: autos
 ## Check that everything works
 
 - **In the app**: "✅ Service active" at the top, number of watched apps, blocked apps, log.
-- **From the computer**: `check.cmd` (version, service, process, permissions, recent log).
+- **From the computer**: `check.cmd` (version, notification access, accessibility list, process, permissions, recent log).
+- **Banking-app check**: `adb shell settings get secure enabled_accessibility_services` must not contain `com.phili.notifguard` (it cannot: the app declares no accessibility service).
 - **Unblocking test** (replace with one of your apps):
   ```bash
   adb shell am force-stop com.whatsapp
@@ -125,12 +131,11 @@ In **i Manager → App manager** (or Settings → Battery) for *Guardian*: autos
 
 ## Rules to know
 
-1. **Settings**: while the Settings app is open (any page), vivo's security centre **suspends** Guardian; it comes back **on its own ~1 min** after you leave. This is normal.
-2. **Do not reboot within a minute** of visiting Settings (otherwise the service stays off).
-3. When in doubt: open Guardian → "✅ Service active" or "❌ Service disabled".
-4. If "❌ Service disabled": "Accessibility settings" button → Guardian → turn on → **Home button** → check again after ~1 min. No need to put the lock on again.
-5. "Refresh" only updates the display.
-6. After an **update**: accept the install on the phone; the service usually stays on, otherwise rule 4.
+1. When in doubt: open Guardian → "✅ Service active" or "❌ Service disabled".
+2. If "❌ Service disabled": "Notification access settings" button → Guardian → turn on → come back → "Refresh". No need to put the lock on again.
+3. "Refresh" only updates the display.
+4. After an **update**: accept the install on the phone; the service usually stays on, otherwise rule 2.
+5. The suspension of the accessibility service by vivo's security centre while Settings is open (previous versions) no longer applies: there is no accessibility service.
 
 ## What is not covered
 
@@ -168,18 +173,19 @@ adb shell am broadcast -n app.revanced.android.gms/org.microg.gms.gcm.TriggerRec
 | 3 | `adb shell cmd appops set com.phili.notifguard ACCESS_RESTRICTED_SETTINGS default` |
 | 4 | `adb shell cmd appops set com.phili.notifguard AUTO_REVOKE_PERMISSIONS_IF_UNUSED default` |
 | 5 | `adb shell cmd deviceidle whitelist -com.phili.notifguard` |
-| 6 | Settings → Accessibility → Guardian → turn off |
-| 7 | `adb shell cmd deviceidle whitelist -app.revanced.android.gms` |
+| 6 | `adb shell cmd notification disallow_listener com.phili.notifguard/com.phili.notifguard.GuardService` |
+| 7 | `adb shell cmd appops set com.phili.notifguard GET_USAGE_STATS default` |
+| 8 | `adb shell cmd deviceidle whitelist -app.revanced.android.gms` |
 
 ## Build it yourself
 
-No Gradle: JDK 17+ and Android SDK (platform 36, build-tools 36.0.0, `ANDROID_HOME` set or SDK in `~/Android/Sdk`).
+No Gradle: JDK 17+ and Android SDK (platform 36 and build-tools 36.0.0, or the newest ones installed; `ANDROID_HOME` set, or SDK in `~/Android/Sdk` or `%LOCALAPPDATA%AndroidSdk`).
 
 ```bash
 bash build.sh
 ```
 
-Produces `Guardian.apk` signed with your debug key. With your own key: `KEYSTORE=… KEYSTORE_PASS=… KEY_ALIAS=… bash build.sh`. An APK signed with another key does not install on top of the published version: uninstall first.
+Produces `Guardian.apk` signed with your debug key (`~/.android/debug.keystore`, created on first build: keep it, updates must be signed with the same key). With your own key: `KEYSTORE=… KEYSTORE_PASS=… KEY_ALIAS=… bash build.sh`. An APK signed with another key does not install on top of the published version: uninstall first.
 
 Translations: `res/values/strings.xml` (English) and `res/values-fr/strings.xml` (French). Pull requests for other languages are welcome.
 
