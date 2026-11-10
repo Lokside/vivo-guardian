@@ -2,11 +2,11 @@
 
 Petite app Android **sans root** qui empêche les téléphones **vivo** de couper les notifications de vos apps.
 
-**Télécharger** : [dernière version (APK)](https://github.com/mohsinian/vivo-guardian/releases/latest) · [détails techniques et preuves](docs/TECHNIQUE.md) · [historique](CHANGELOG.md) · 🇬🇧 [English version](README.md)
+**Télécharger** : [dernière version (APK)](https://github.com/Lokside/vivo-guardian/releases/latest) · [détails techniques et preuves](docs/TECHNIQUE.md) · [historique](CHANGELOG.md) · 🇬🇧 [English version](README.md)
 
 ---
 
-> ⚠️ **Fork sans service d'accessibilité** (versions `-noa11y`) de [Lokside/vivo-guardian](https://github.com/Lokside/vivo-guardian) : Guardian n'est plus un service d'accessibilité (les apps bancaires le refusent) mais un service d'écoute des notifications, tous types de notifications désactivés. Cette page décrit encore la v12 d'origine : la documentation à jour est en anglais ([README](README.md), [détails techniques](docs/TECHNICAL.md)).
+> ⚠️ **Version sans service d'accessibilité** : Guardian n'est plus un service d'accessibilité (les apps bancaires le refusent) mais un service d'écoute des notifications, tous types de notifications désactivés. Cette page décrit encore la v12 : la documentation à jour est en anglais ([README](README.md), [détails techniques](docs/TECHNICAL.md)).
 
 ## Le problème
 
@@ -67,7 +67,7 @@ C'est la méthode qui reproduit exactement la configuration testée.
 - Paramètres → Système → **Options pour les développeurs** → activer **Débogage USB** (et **Installation via USB** s'il existe).
 - Brancher le câble, accepter l'empreinte du PC sur le téléphone.
 
-**3. Télécharger** depuis la [page Releases](https://github.com/mohsinian/vivo-guardian/releases/latest) : `Guardian.apk` et `install.cmd` (Windows) ou `install.sh` (macOS/Linux), dans le **même dossier**.
+**3. Télécharger** depuis la [page Releases](https://github.com/Lokside/vivo-guardian/releases/latest) : `Guardian.apk` et `install.cmd` (Windows) ou `install.sh` (macOS/Linux), dans le **même dossier**.
 
 **4. Lancer le script** (double-clic sur `install.cmd`, ou `bash install.sh`). Il :
 

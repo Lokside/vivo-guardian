@@ -2,11 +2,11 @@
 
 A small **no-root** Android app that stops **vivo** phones from cutting off your apps' notifications.
 
-**Download**: [latest version (APK)](https://github.com/mohsinian/vivo-guardian/releases/latest) · [technical details and evidence](docs/TECHNICAL.md) · [changelog](CHANGELOG.md) · 🇫🇷 [Version française](README.fr.md)
+**Download**: [latest version (APK)](https://github.com/Lokside/vivo-guardian/releases/latest) · [technical details and evidence](docs/TECHNICAL.md) · [changelog](CHANGELOG.md) · 🇫🇷 [Version française](README.fr.md)
 
 ---
 
-> **Fork without an accessibility service** (versions `-noa11y`). This is a fork of [Lokside/vivo-guardian](https://github.com/Lokside/vivo-guardian): the research, the method and the original app are Lokside's. The one difference: banking apps (seen: BRAC Bank Astha) refuse to run while a third-party accessibility service is enabled, so here Guardian is kept alive as a **notification listener** instead, with every notification type disabled in its manifest. It is not on the accessibility list at all and receives no notification content. Nothing is hidden from the banking app: the accessibility service simply no longer exists. If no banking app complains on your phone, use the original. See [changelog](CHANGELOG.md) and [technical details](docs/TECHNICAL.md#4-keep-alive-a-notification-listener-not-an-accessibility-service).
+> **This version uses no accessibility service.** Banking apps (seen: BRAC Bank Astha) refuse to run while a third-party accessibility service is enabled. Guardian is now kept alive as a **notification listener** instead, with every notification type disabled in its manifest, so it is not on the accessibility list at all and receives no notification content. Nothing is hidden from the banking app: the accessibility service simply no longer exists. See [changelog](CHANGELOG.md) and [technical details](docs/TECHNICAL.md#4-keep-alive-a-notification-listener-not-an-accessibility-service).
 
 ## The problem
 
@@ -47,7 +47,7 @@ It is a **notification listener** (not an accessibility service): Android keeps 
 |---|---|
 | Tested | **vivo X Fold6**, OriginOS 7 **Chinese ROM**, Android 17, locked bootloader, no root (accessibility version, v12) |
 | Tested (this build) | vivo **V2502DA**, OriginOS 7, Android 17, no root |
-| Probably | other vivo / iQOO phones on OriginOS (same system code) |
+| Probably | other vivo / iQOO phones on OriginOS (same system code) — feedback welcome in *Issues* |
 | Not tested | global ROMs (FuntouchOS / international OriginOS), other brands |
 | Minimum | Android 8.0 |
 
@@ -68,7 +68,7 @@ This method reproduces the tested setup exactly.
 - Settings → System → **Developer options** → turn on **USB debugging** (and **Install via USB** if present).
 - Plug in the cable, accept the computer's fingerprint on the phone.
 
-**3. Download** from the [Releases page](https://github.com/mohsinian/vivo-guardian/releases/latest): `Guardian.apk` and `install.cmd` (Windows) or `install.sh` (macOS/Linux), into the **same folder**.
+**3. Download** from the [Releases page](https://github.com/Lokside/vivo-guardian/releases/latest): `Guardian.apk` and `install.cmd` (Windows) or `install.sh` (macOS/Linux), into the **same folder**.
 
 **4. Run the script** (double-click `install.cmd`, or `bash install.sh`). It runs:
 
@@ -105,7 +105,7 @@ Without it, **"Clear all" force-stops Guardian** like any other app. The recent-
 2. Open **recent apps** → put the **lock** on the "Guardian" card (drag the card down, or long-press → Lock, depending on the version).
 3. Tap the card to come back to Guardian → **"Done: remove the card"**.
 
-⚠️ **Never** close Guardian's card by swiping it up: vivo force-stopped the accessibility version that way (`single-cleaner`); not re-tested with this fork. The rest of the time, Guardian has no card in recent apps.
+⚠️ **Never** close Guardian's card by swiping it up: vivo force-stopped the accessibility version that way (`single-cleaner`); not re-tested with this version. The rest of the time, Guardian has no card in recent apps.
 
 ### Recommended vivo settings (optional)
 
