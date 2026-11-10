@@ -6,6 +6,8 @@ Petite app Android **sans root** qui empêche les téléphones **vivo** de coupe
 
 ---
 
+> ⚠️ **Version sans service d'accessibilité** : Guardian n'est plus un service d'accessibilité (les apps bancaires le refusent) mais un service d'écoute des notifications, tous types de notifications désactivés. Cette page décrit encore la v12 : la documentation à jour est en anglais ([README](README.md), [détails techniques](docs/TECHNICAL.md)).
+
 ## Le problème
 
 Sur vivo (ROM chinoise OriginOS), vos apps arrêtent de recevoir leurs notifications pendant des heures, jusqu'à ce que vous les rouvriez. La cause, prouvée par les journaux système :
@@ -65,7 +67,7 @@ C'est la méthode qui reproduit exactement la configuration testée.
 - Paramètres → Système → **Options pour les développeurs** → activer **Débogage USB** (et **Installation via USB** s'il existe).
 - Brancher le câble, accepter l'empreinte du PC sur le téléphone.
 
-**3. Télécharger** depuis la [page Releases](https://github.com/Lokside/vivo-guardian/releases/latest) : `Guardian-v12.apk` et `install.cmd` (Windows) ou `install.sh` (macOS/Linux), dans le **même dossier**.
+**3. Télécharger** depuis la [page Releases](https://github.com/Lokside/vivo-guardian/releases/latest) : `Guardian.apk` et `install.cmd` (Windows) ou `install.sh` (macOS/Linux), dans le **même dossier**.
 
 **4. Lancer le script** (double-clic sur `install.cmd`, ou `bash install.sh`). Il :
 

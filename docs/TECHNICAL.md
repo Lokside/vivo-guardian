@@ -49,19 +49,24 @@ Conversely, a **killed** app (memory, `low memory`, `pruner`) is not "stopped": 
   ```
   Gmail (real pre-start): stopped at 17:55:27.344, unblocked at 17:55:28.209 (0.9 s).
 
-## 4. Why an accessibility service
+## 4. Keep-alive: a notification listener, not an accessibility service
 
-It is the only component an ordinary app can keep alive on vivo without root: Android maintains it (`procState=5`), vivo does not freeze it. It only requests `typeWindowStateChanged` (used as a reminder to check the apps) and `canRetrieveWindowContent=false`.
+Up to v12 Guardian was an accessibility service, only because it is a component Android keeps alive (`procState=5`). Banking apps (seen: BRAC Bank Astha, `com.bracbank.astha`) read the list of enabled accessibility services and refuse to run when a third-party one is on it. Since v12.1 the service is a **notification listener** (`NotificationListenerService`): Android binds an enabled listener the same way and binds it again when its process dies. The app declares no accessibility service any more, so it cannot appear in `enabled_accessibility_services`.
 
-Constraints discovered:
-- **Cleaner**: `com.vivo.sps` (`NRMS-AccessibilityServices` classes) force-stops third-party accessibility services on "Clear all", except those on its list. Dead ends:
-  - `settings put secure third_srceen_read_packages …`: read only once when `sps` starts, then reset to the factory value at every reboot;
-  - "notclean" lists (`content://com.iqoo.secure.provider.secureprovider/speedupwhitelist`, etc.): writing refused from adb.
-  - **Solution**: the recent-apps lock (`UserLockedAppFilter` / `LockedAppManager`) is remembered **per app**. Tested: "Clear all" closed 96 processes but not Guardian (same pid, accessibility still on), also after a reboot. This is why the app has a dedicated screen, shown in recent apps long enough to put the lock on, while its main screen is excluded from them (`excludeFromRecents`, `finishAndRemoveTask()`).
-- **Settings**: vivo's security centre (`com.vivo.safecenter`) removes the service from `enabled_accessibility_services` while the Settings app is open and puts it back ~1 min later (seen: cut at 18:22:05, restored at 18:23:02). A reboot within that minute leaves it off. Visible with `adb shell dumpsys settings | grep name:enabled_accessibility_services`.
+- **No notification is read.** The manifest declares `android.service.notification.disabled_filter_types = conversations|alerting|silent|ongoing`: the system delivers none of these types to the listener and the user cannot turn them on. The service overrides no `onNotification…` callback. Check: `adb shell dumpsys notification | grep -A3 notifguard`.
+- **What accessibility events were used for, and what replaces them**:
+  - a check of the watched apps on window changes → a check 4 s after the screen turns off (the resource manager strikes 1 to 2 s after it), in addition to the force-stop broadcast, screen-on and the 5-minute check;
+  - knowing that the Settings app is in the foreground (user "Force stop") → `UsageStatsManager` (last `ACTIVITY_RESUMED` event), only if the optional usage access is granted and the screen is on. Without it every force-stop is undone.
+- **Measured on a vivo V2502DA (OriginOS 7, Android 17), v12.2**: listener bound by the system after install without opening the app, `curProcState=5` (the same as the accessibility version); `am force-stop com.google.android.gm` → "force-stop detected" at 05:08:16.411, "unblocked ✓" at 05:08:18.219; `enabled_accessibility_services` = null.
+- **Binding**: seen once, right after the very first install (app never opened yet): access granted with `cmd notification allow_listener` but the service was not bound, and Android did not try again. Opening Guardian now asks for a bind (`requestUnbind` + `requestRebind`); a reinstall also rebinds.
+- **Wake-ups refused by vivo**: on that phone, the apps whose unblocking failed were exactly those with autostart off in `content://com.vivo.permissionmanager.provider.permission/bg_start_up_apps` (`currentstate=1`). This does not depend on how Guardian is kept alive.
+- **Cleaner**: "Clear all" force-stops Guardian like any app. The recent-apps lock (`UserLockedAppFilter` / `LockedAppManager`) is remembered **per app** and protects it. This is why the app has a dedicated screen, shown in recent apps long enough to put the lock on, while its main screen is excluded from them (`excludeFromRecents`, `finishAndRemoveTask()`).
+- **Settings**: the removal of the accessibility service by vivo's security centre (`com.vivo.safecenter`) while the Settings app is open concerned accessibility services only.
 - **`GET_INSTALLED_APPS`**: Chinese-standard permission; without it, `getInstalledApplications` only returns system apps.
 
 ## 5. Cost
+
+Measured with the accessibility version (v12); not measured again for v12.1, which does strictly less work (no window events).
 
 Day of 19/10/2026, 08:39 → 19:00, unplugged, one reboot (`dumpsys batterystats --charged`):
 - Guardian: **0.73 mAh** out of 1,794 mAh (0.04 %), of which 0.42 mAh of screen during its 13 s on display; 7.9 s of CPU in total; no wakelock, no alarm, no network.

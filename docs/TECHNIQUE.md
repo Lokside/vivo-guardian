@@ -4,6 +4,8 @@
 
 Tout ce qui suit a été observé sur un **vivo X Fold6** (ROM chinoise OriginOS 7, Android 17, sans root), avec `adb logcat -b events`, `dumpsys activity exit-info`, le journal GCM de Google Play Services et le code de `vivo-services.jar` / `com.vivo.sps` (désassemblé).
 
+> ⚠️ **Version 12.1-noa11y** : Guardian n'est plus un service d'accessibilité (les apps bancaires le refusent) mais un service d'écoute des notifications, tous types de notifications désactivés. Cette page décrit encore la v12 : la documentation à jour est en anglais ([README](../README.md), [détails techniques](TECHNICAL.md)).
+
 ## 1. Le pré-démarrage du lanceur
 
 Quand le doigt se pose sur une icône, le lanceur prévient le système (`vboost` → `notifyTouchAppToAms`, actif si le système répond « version ≥ 2 »), puis :

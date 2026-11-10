@@ -4,14 +4,19 @@ rem The list of blocked apps and the full log are in the app itself.
 setlocal
 set "PKG=com.phili.notifguard"
 set "ADB=adb"
+if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
 for /d %%D in ("%LOCALAPPDATA%\Microsoft\WinGet\Packages\Google.PlatformTools_*") do (
   if exist "%%D\platform-tools\adb.exe" set "ADB=%%D\platform-tools\adb.exe"
 )
 
 echo == Installed version
 "%ADB%" shell "dumpsys package %PKG% | grep -m1 versionName"
-echo == Active accessibility services (must contain %PKG%)
+echo == Apps with notification access (must contain %PKG%)
+"%ADB%" shell settings get secure enabled_notification_listeners
+echo == Active accessibility services (Guardian must NOT be listed: banking apps check this list)
 "%ADB%" shell settings get secure enabled_accessibility_services
+echo == Usage access (optional; "allow" = a Force stop done from Settings is respected)
+"%ADB%" shell cmd appops get %PKG% GET_USAGE_STATS
 echo == Process (a number = running; it must stay the same after "Clear all")
 "%ADB%" shell pidof %PKG%
 echo == Permission "list of installed apps" (granted=true expected)

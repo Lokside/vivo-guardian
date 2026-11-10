@@ -1,7 +1,9 @@
 package com.phili.notifguard;
 
 import android.Manifest;
-import android.accessibilityservice.AccessibilityService;
+import android.app.AppOpsManager;
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -15,8 +17,10 @@ import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.os.Process;
 import android.os.SystemClock;
-import android.view.accessibility.AccessibilityEvent;
+import android.service.notification.NotificationListenerService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,8 +37,13 @@ import java.util.Set;
  *
  * Watched apps: every app installed by the user (and updated Google apps) that is allowed to post
  * notifications, except vivo / Android system apps.
+ *
+ * Keep-alive: this is a notification listener, NOT an accessibility service (banking apps refuse to run
+ * next to third-party accessibility services). Android keeps an enabled listener bound exactly like an
+ * accessibility service. The listener role is only an anchor: every notification type is disabled in the
+ * manifest, so the system delivers no notification to this service and it reads none.
  */
-public class GuardService extends AccessibilityService {
+public class GuardService extends NotificationListenerService {
 
     private static final String WAKE_ACTION = "com.phili.notifguard.WAKE";
     // Actions whose receivers are almost always exported and without permission.
@@ -54,9 +63,14 @@ public class GuardService extends AccessibilityService {
     private static final ComponentName GMSCORE_TRIGGER = new ComponentName(
             "app.revanced.android.gms", "org.microg.gms.gcm.TriggerReceiver");
     private static final long SWEEP_PERIOD_MS = 5 * 60 * 1000;
-    private static final long EVENT_SWEEP_MIN_GAP_MS = 20 * 1000;
     private static final long REWAKE_MIN_GAP_MS = 10 * 1000;
+    // vivo's resource manager force-stops apps 1 to 2 s after the screen turns off: check once after it.
+    private static final long SCREEN_OFF_SWEEP_DELAY_MS = 4 * 1000;
+    private static final long FOREGROUND_LOOKBACK_MS = 30 * 60 * 1000;
     private static final int MAX_ATTEMPTS = 3;
+
+    /** True while Android has this listener bound (read by the status screen, same process). */
+    static volatile boolean connected;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, List<ComponentName>> entryCache = new HashMap<>();
@@ -67,8 +81,7 @@ public class GuardService extends AccessibilityService {
     // Cached list of watched apps: rebuilt (scan of all installed apps) only when an app is installed /
     // updated / removed, when the screen turns on and every 5 min.
     private List<String> watchedCache;
-    private long lastSweep;
-    private String foregroundPkg = "";
+    private boolean started;
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -95,7 +108,11 @@ public class GuardService extends AccessibilityService {
                     leftAlone.remove(pkg);
                 }
                 watchedCache = null;
+            } else if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                handler.removeCallbacks(screenOffSweep);
+                handler.postDelayed(screenOffSweep, SCREEN_OFF_SWEEP_DELAY_MS);
             } else {
+                handler.removeCallbacks(screenOffSweep);
                 sweep(getString(R.string.reason_screen_on), true);
                 pokeGmsCore();
             }
@@ -111,8 +128,15 @@ public class GuardService extends AccessibilityService {
         }
     };
 
+    // Light check (apps already watched): catches a force-stop whose broadcast would have been missed.
+    private final Runnable screenOffSweep = () -> sweep(getString(R.string.reason_screen_off), false);
+
     @Override
-    protected void onServiceConnected() {
+    public void onListenerConnected() {
+        connected = true;
+        if (started) return;
+        started = true;
+
         IntentFilter packages = new IntentFilter(Intent.ACTION_PACKAGE_RESTARTED);
         packages.addAction(Intent.ACTION_PACKAGE_ADDED);
         packages.addAction(Intent.ACTION_PACKAGE_REPLACED);
@@ -120,6 +144,7 @@ public class GuardService extends AccessibilityService {
         packages.addDataScheme("package");
         IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_ON);
         screen.addAction(Intent.ACTION_USER_PRESENT);
+        screen.addAction(Intent.ACTION_SCREEN_OFF);
         register(packages);
         register(screen);
 
@@ -130,6 +155,32 @@ public class GuardService extends AccessibilityService {
             Journal.write(this, getString(R.string.j_gmscore));
         }
         handler.postDelayed(periodicSweep, SWEEP_PERIOD_MS);
+    }
+
+    @Override
+    public void onListenerDisconnected() {
+        stop();
+        // Android unbound the listener while notification access is still granted (it happens after
+        // some system events): ask to be bound again. No effect if the user turned the access off.
+        requestRebind(new ComponentName(this, GuardService.class));
+    }
+
+    @Override
+    public void onDestroy() {
+        stop();
+        super.onDestroy();
+    }
+
+    private void stop() {
+        connected = false;
+        if (!started) return;
+        started = false;
+        handler.removeCallbacksAndMessages(null);
+        try {
+            unregisterReceiver(receiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+        Journal.write(this, getString(R.string.j_service_stopped));
     }
 
     /** Sends the soft signal to GmsCore if it is installed. Returns false if it is absent. */
@@ -154,36 +205,41 @@ public class GuardService extends AccessibilityService {
         }
     }
 
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        CharSequence pkg = event.getPackageName();
-        if (pkg != null) {
-            foregroundPkg = pkg.toString();
-        }
-        // Every window change (back to home, opening an app...) serves as a reminder.
-        if (SystemClock.elapsedRealtime() - lastSweep > EVENT_SWEEP_MIN_GAP_MS) {
-            sweep(null, false); // light check: only the apps already watched
-        }
-    }
-
-    /** A "Force stop" made by the user necessarily comes from the Settings app in the foreground. */
+    /**
+     * A "Force stop" made by the user necessarily comes from the Settings app in the foreground, with
+     * the screen on (vivo's resource manager strikes after the screen turns off). Knowing the foreground
+     * app requires the optional "usage access"; without it every force-stop is undone.
+     */
     private boolean stoppedByUser() {
-        return foregroundPkg.startsWith(SETTINGS_PKG);
+        PowerManager pm = getSystemService(PowerManager.class);
+        if (pm == null || !pm.isInteractive()) return false;
+        String foreground = foregroundPackage();
+        return foreground != null && foreground.startsWith(SETTINGS_PKG);
     }
 
-    @Override
-    public void onInterrupt() {
-    }
-
-    @Override
-    public void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
-        try {
-            unregisterReceiver(receiver);
-        } catch (IllegalArgumentException ignored) {
+    /** Package of the last activity brought to the screen, or null if unknown (no usage access). */
+    private String foregroundPackage() {
+        if (!hasUsageAccess(this)) return null;
+        UsageStatsManager usm = getSystemService(UsageStatsManager.class);
+        if (usm == null) return null;
+        long now = System.currentTimeMillis();
+        UsageEvents events = usm.queryEvents(now - FOREGROUND_LOOKBACK_MS, now);
+        if (events == null) return null;
+        UsageEvents.Event event = new UsageEvents.Event();
+        String foreground = null;
+        while (events.getNextEvent(event)) {
+            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) { // = ACTIVITY_RESUMED
+                foreground = event.getPackageName();
+            }
         }
-        Journal.write(this, getString(R.string.j_service_stopped));
-        super.onDestroy();
+        return foreground;
+    }
+
+    @SuppressWarnings("deprecation") // checkOpNoThrow: unsafeCheckOpNoThrow only exists from API 29
+    static boolean hasUsageAccess(Context context) {
+        AppOpsManager ops = context.getSystemService(AppOpsManager.class);
+        return ops != null && ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), context.getPackageName()) == AppOpsManager.MODE_ALLOWED;
     }
 
     private List<String> watched(boolean refresh) {
@@ -194,7 +250,6 @@ public class GuardService extends AccessibilityService {
     }
 
     private void sweep(String reason, boolean refreshList) {
-        lastSweep = SystemClock.elapsedRealtime();
         for (String pkg : watched(refreshList)) {
             if (!isStopped(this, pkg)) {
                 lastWake.remove(pkg); // the app was reopened: eligible again
@@ -204,9 +259,7 @@ public class GuardService extends AccessibilityService {
             if (leftAlone.contains(pkg)) continue;
             Long last = lastWake.get(pkg);
             if (last != null && SystemClock.elapsedRealtime() - last < REWAKE_MIN_GAP_MS) continue;
-            Journal.write(this, reason == null
-                    ? getString(R.string.j_found_blocked, label(this, pkg))
-                    : getString(R.string.j_found_blocked_reason, label(this, pkg), reason));
+            Journal.write(this, getString(R.string.j_found_blocked_reason, label(this, pkg), reason));
             wake(pkg, 0);
         }
     }

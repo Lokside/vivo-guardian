@@ -1,5 +1,23 @@
 # Changelog
 
+## v12.3-noa11y — 10/11/2026
+- Back from a settings screen opened by a Guardian button, and Back or "Done" on the lock screen, return to Guardian's main screen (they used to land on the home screen, because the main screen closes itself as soon as it is left).
+- Still no card in recent apps for the main screen: this is deliberate (a card can be swiped away).
+
+## v12.2-noa11y — 10/11/2026
+- The first button was hidden under the title bar (content drawn behind the bars since Android 15): no title bar any more, the screen keeps clear of the system bars.
+- The settings buttons open in their own task (they used to close along with Guardian's screen).
+- If notification access is granted but Android has not bound the service, opening Guardian binds it.
+- New button "Guardian app settings (autostart)".
+
+## v12.1-noa11y — 10/11/2026
+- **No accessibility service any more**: banking apps (BRAC Bank Astha) refuse to run next to a third-party accessibility service. Guardian is now kept alive as a notification listener, with every notification type disabled in the manifest (it receives no notification).
+- Check of the watched apps 4 s after the screen turns off (replaces the check on app switches).
+- A "Force stop" done from Settings is respected only with the optional usage access.
+- The status screen shows whether the listener is connected; buttons for notification access and usage access.
+- `install` scripts: `cmd notification allow_listener` instead of the accessibility setting; `check.cmd` shows both lists.
+- `build.sh`: finds the SDK in `%LOCALAPPDATA%AndroidSdk` and uses the newest build-tools / platform if 36 is not installed.
+
 ## v12 — 21/10/2026
 - New name: **Guardian** (was "Gardien notifs").
 - Interface in English, French translation on phones set to French.

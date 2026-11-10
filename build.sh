@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 # Builds Guardian.apk without Gradle (aapt2 + javac + d8 + apksigner).
-# Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0).
+# Requirements: JDK 17+, Android SDK (platform 36 and build-tools 36.0.0, or the newest ones installed).
+# Overrides: ANDROID_HOME, BUILD_TOOLS (e.g. 37.0.0), ANDROID_PLATFORM (e.g. android-36.1), JAVA_HOME.
 # Signing: release key if KEYSTORE is set (KEYSTORE_PASS, KEY_ALIAS), otherwise the debug key.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION_CODE=12
-VERSION_NAME=12.0
+VERSION_CODE=15
+VERSION_NAME=12.3-noa11y
 
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+# Default location of the SDK on Windows (Android Studio / sdkmanager).
+[ -d "$SDK" ] || [ -z "${LOCALAPPDATA:-}" ] || SDK="$(cygpath -u "$LOCALAPPDATA" 2>/dev/null || echo "$LOCALAPPDATA")/Android/Sdk"
+# Requested (or reference) version if installed, otherwise the newest one present.
+newest() { ls -d "$1"/* 2>/dev/null | sort -V | tail -1; }
 BT="$SDK/build-tools/${BUILD_TOOLS:-36.0.0}"
-JAR="$SDK/platforms/android-36/android.jar"
+[ -d "$BT" ] || BT="$(newest "$SDK/build-tools")"
+PLATFORM="$SDK/platforms/${ANDROID_PLATFORM:-android-36}"
+[ -d "$PLATFORM" ] || PLATFORM="$(newest "$SDK/platforms")"
+JAR="$PLATFORM/android.jar"
+[ -f "$JAR" ] && [ -d "$BT" ] || { echo "Android SDK not found in $SDK (set ANDROID_HOME)"; exit 1; }
 OUT=build
 JDK="${JAVA_HOME:-$(java -XshowSettings:properties -version 2>&1 | sed -n 's/.*java.home = //p' | tr -d '\r')}"
 EXE=; BAT=
